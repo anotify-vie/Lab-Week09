@@ -623,3 +623,99 @@ secret_name is not returned
 ```
 
 This prevents sensitive fields from being exposed through the API.
+
+## Question 13
+
+**Call `GET /heroes?min_age=18&team_id=1` and copy the `SELECT` printed by `echo=True`. Where do the values `18` and `1` appear? Why is this safe against SQL injection?**
+
+**Answer:**  
+When calling:
+
+```text
+GET /heroes?min_age=18&team_id=1
+```
+
+SQLAlchemy prints a `SELECT` statement similar to:
+
+```sql
+SELECT hero.name, hero.age, hero.team_id, hero.id, hero.secret_name
+FROM hero
+WHERE hero.age >= %(age_1)s
+AND hero.team_id = %(team_id_1)s
+ORDER BY hero.id
+LIMIT %(param_1)s OFFSET %(param_2)s
+```
+
+The exact parameter names may be different depending on the SQLAlchemy version.
+
+The values `18` and `1` do not normally appear directly inside the SQL string. Instead, they are sent separately as bound parameters.
+
+For example, the log may show parameter values similar to:
+
+```text
+18
+1
+```
+
+being passed separately from the SQL statement.
+
+This is safer against SQL injection because SQLAlchemy uses parameterized queries instead of directly concatenating user input into the SQL string.
+
+For example, instead of generating something like:
+
+```sql
+WHERE age >= 18
+```
+
+by manually building a string from user input, SQLAlchemy sends the SQL structure and parameter values separately.
+
+This prevents user input from being interpreted as part of the SQL command itself.
+
+---
+
+## Question 14
+
+**Why filter in the database instead of**
+
+```python
+[h for h in session.exec(select(Hero)).all() if h.age >= 18]
+```
+
+**?**
+
+**Answer:**  
+Filtering in the database is better because the database can return only the rows that match the condition.
+
+For example:
+
+```python
+statement = select(Hero).where(Hero.age >= 18)
+heroes = session.exec(statement).all()
+```
+
+generates a SQL query similar to:
+
+```sql
+SELECT *
+FROM hero
+WHERE age >= 18;
+```
+
+This means PostgreSQL performs the filtering before sending the results back to the Python application.
+
+If we instead use:
+
+```python
+[h for h in session.exec(select(Hero)).all() if h.age >= 18]
+```
+
+the application first loads all hero rows from the database and then filters them in Python.
+
+This is less efficient because:
+
+- more rows must be transferred from PostgreSQL to Python;
+- more memory is used in the application;
+- Python has to perform the filtering itself;
+- the problem becomes worse when the table contains a large amount of data.
+
+Therefore, filtering in the database is more efficient and makes better use of the database query engine.
