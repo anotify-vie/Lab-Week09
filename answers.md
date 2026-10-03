@@ -719,3 +719,30 @@ This is less efficient because:
 - the problem becomes worse when the table contains a large amount of data.
 
 Therefore, filtering in the database is more efficient and makes better use of the database query engine.
+
+## Question 15
+
+**On restart, `create_all` did create `mission` and `heromissionlink`. In Part 4 it did nothing for `hero`. What is the rule?**
+
+**Answer:**  
+`SQLModel.metadata.create_all(engine)` creates tables that do not already exist in the database.
+
+When the application restarted in Part 7, the `mission` and `heromissionlink` tables were new, so `create_all()` created them.
+
+The `hero` table already existed from Part 4, so `create_all()` did not create it again.
+
+The rule is:
+
+```text
+If the table does not exist
+→ create_all() creates it
+
+If the table already exists
+→ create_all() leaves it unchanged
+```
+
+This also means that `create_all()` does not update the structure of an existing table.
+
+For example, if the `hero` table already exists and we later add a new field to the `Hero` model, simply restarting the application does not automatically add a new column to the existing database table.
+
+That is why database schema changes should be handled with migrations, such as Alembic, instead of relying on `create_all()`.

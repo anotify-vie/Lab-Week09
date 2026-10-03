@@ -5,7 +5,18 @@ from sqlmodel import SQLModel, select
 
 from app import models
 from app.database import engine, SessionDep
-from app.models import (Hero,HeroCreate,HeroPublic,HeroUpdate,Team,TeamCreate,TeamPublic)
+from app.models import (
+    Hero,
+    HeroCreate,
+    HeroPublic,
+    HeroUpdate,
+    Team,
+    TeamCreate,
+    TeamPublic,
+    Mission,
+    MissionCreate,
+    MissionPublic,
+)
 
 
 @asynccontextmanager
@@ -145,4 +156,68 @@ def get_team_heroes(team_id: int, session: SessionDep):
         )
 
     return team.heroes
+
+@app.post("/missions", response_model=MissionPublic, status_code=201)
+def create_mission(
+    mission_in: MissionCreate,
+    session: SessionDep
+):
+    mission = Mission.model_validate(mission_in)
+
+    session.add(mission)
+    session.commit()
+    session.refresh(mission)
+
+    return mission
+
+@app.post(
+    "/heroes/{hero_id}/missions/{mission_id}",
+    status_code=204
+)
+def assign_hero_to_mission(
+    hero_id: int,
+    mission_id: int,
+    session: SessionDep
+):
+    hero = session.get(Hero, hero_id)
+
+    if hero is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Hero not found"
+        )
+
+    mission = session.get(Mission, mission_id)
+
+    if mission is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Mission not found"
+        )
+
+    if mission not in hero.missions:
+        hero.missions.append(mission)
+
+        session.add(hero)
+        session.commit()
+
+    return Response(status_code=204)
+
+@app.get(
+    "/heroes/{hero_id}/missions",
+    response_model=list[MissionPublic]
+)
+def get_hero_missions(
+    hero_id: int,
+    session: SessionDep
+):
+    hero = session.get(Hero, hero_id)
+
+    if hero is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Hero not found"
+        )
+
+    return hero.missions
 
