@@ -417,3 +417,209 @@ SQLModel.metadata.create_all(engine)
 can see those registered models and create the corresponding database tables.
 
 Without importing the module containing the models, SQLModel may not know that the `Hero` and `Team` tables exist, so `create_all()` would have no metadata for those tables to create.
+
+## Question 10
+
+**Comment out `session.commit()` in `create_hero` and create a hero. What does the response look like, and is the row in the database (`SELECT * FROM hero;`)? Put the line back. What does `add()` do on its own, and why do we need `refresh()`?**
+
+**Answer:**  
+If `session.commit()` is commented out, the hero object may exist temporarily inside the SQLAlchemy session, but the data is not permanently saved to the database.
+
+After creating a hero without `commit()`, running:
+
+```sql
+SELECT * FROM hero;
+```
+
+will not show the new row after the transaction is closed or rolled back.
+
+`session.add(hero)` only adds the Python object to the current session and marks it to be inserted. It does not permanently save the data by itself.
+
+```python
+session.add(hero)
+```
+
+means that SQLAlchemy is tracking the object and preparing it for persistence.
+
+The actual permanent save happens when:
+
+```python
+session.commit()
+```
+
+is executed.
+
+After the database inserts the row, fields such as the generated primary key `id` are created by the database.
+
+Therefore, we use:
+
+```python
+session.refresh(hero)
+```
+
+to reload the object from the database so that the Python object contains the latest database values, such as the generated `id`.
+
+The normal flow is:
+
+```text
+session.add(hero)
+        ↓
+object is added to the session
+
+session.commit()
+        ↓
+INSERT is committed to the database
+
+session.refresh(hero)
+        ↓
+reload database-generated values into the object
+```
+
+---
+
+## Question 11
+
+**Which SQL statement does `echo=True` print for `PATCH` with body `{"age": 17}`? Does it update every column or only `age`? Why?**
+
+**Answer:**  
+For a PATCH request with:
+
+```json
+{
+  "age": 17
+}
+```
+
+SQLAlchemy prints an `UPDATE` statement similar to:
+
+```sql
+UPDATE hero
+SET age = %(age)s
+WHERE hero.id = %(hero_id)s;
+```
+
+The exact parameter names may be slightly different depending on SQLAlchemy and PostgreSQL, but only the `age` column is updated.
+
+It does not update every column because the code uses:
+
+```python
+hero_in.model_dump(exclude_unset=True)
+```
+
+`exclude_unset=True` keeps only the fields that were actually sent by the client.
+
+For example:
+
+```python
+hero_data = hero_in.model_dump(exclude_unset=True)
+```
+
+with:
+
+```json
+{
+  "age": 17
+}
+```
+
+produces data similar to:
+
+```python
+{
+    "age": 17
+}
+```
+
+Then:
+
+```python
+hero.sqlmodel_update(hero_data)
+```
+
+only changes the `age` attribute.
+
+Therefore:
+
+```text
+PATCH {"age": 17}
+        ↓
+exclude_unset=True
+        ↓
+{"age": 17}
+        ↓
+UPDATE age only
+```
+
+This is appropriate for PATCH because PATCH is used for partial updates.
+
+---
+
+## Question 12
+
+**Look at the JSON returned by `GET /heroes/{id}`. Is `secret_name` there? Which line of code is responsible?**
+
+**Answer:**  
+No, `secret_name` is not included in the JSON response.
+
+For example, the database object may contain:
+
+```text
+id = 1
+name = Peter
+age = 17
+team_id = null
+secret_name = Spider-Man
+```
+
+but the API response looks like:
+
+```json
+{
+  "name": "Peter",
+  "age": 17,
+  "team_id": null,
+  "id": 1
+}
+```
+
+The `secret_name` field is removed because the endpoint uses:
+
+```python
+response_model=HeroPublic
+```
+
+For example:
+
+```python
+@app.get("/heroes/{hero_id}", response_model=HeroPublic)
+```
+
+`HeroPublic` contains:
+
+```python
+class HeroPublic(HeroBase):
+    id: int
+```
+
+and does not contain:
+
+```python
+secret_name
+```
+
+FastAPI uses the response model to validate and filter the returned data before sending it to the client.
+
+Therefore:
+
+```text
+Hero database object
+contains secret_name
+        ↓
+response_model=HeroPublic
+        ↓
+FastAPI filters response
+        ↓
+secret_name is not returned
+```
+
+This prevents sensitive fields from being exposed through the API.
