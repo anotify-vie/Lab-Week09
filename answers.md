@@ -746,3 +746,86 @@ This also means that `create_all()` does not update the structure of an existing
 For example, if the `hero` table already exists and we later add a new field to the `Hero` model, simply restarting the application does not automatically add a new column to the existing database table.
 
 That is why database schema changes should be handled with migrations, such as Alembic, instead of relying on `create_all()`.
+
+## Question 16
+
+**You never set `team_id` in the seed script. Read the `echo=True` output: in which order were the `INSERT`s executed, and how did `hero.team_id` get its value?**
+
+**Answer:**  
+In the seed script, the relationships are assigned using Python objects, for example:
+
+```python
+team=avengers
+```
+
+instead of manually writing:
+
+```python
+team_id=1
+```
+
+When `session.commit()` is executed, SQLAlchemy determines the correct insert order from the relationships and foreign keys.
+
+The inserts happen in an order similar to:
+
+```text
+1. INSERT teams
+2. INSERT missions
+3. INSERT heroes
+4. INSERT rows into heromissionlink
+```
+
+The team rows must be inserted before the hero rows because `hero.team_id` is a foreign key that depends on `team.id`.
+
+After PostgreSQL inserts a team, it generates the primary key value for that team. SQLAlchemy then keeps that generated ID in the `Team` object.
+
+For example:
+
+```python
+avengers = Team(
+    name="Avengers",
+    headquarters="New York"
+)
+```
+
+After the team is inserted, SQLAlchemy knows its generated ID, such as:
+
+```text
+avengers.id = 1
+```
+
+Then, because the hero was created with:
+
+```python
+team=avengers
+```
+
+SQLAlchemy automatically uses that relationship to set the corresponding foreign key value:
+
+```text
+hero.team_id = 1
+```
+
+So the relationship:
+
+```python
+team=avengers
+```
+
+is translated into the database foreign key:
+
+```text
+hero.team_id → team.id
+```
+
+without manually typing the ID.
+
+The same idea is used for missions. When we write:
+
+```python
+missions=[sokovia]
+```
+
+SQLAlchemy automatically inserts the correct `hero_id` and `mission_id` values into the `heromissionlink` table.
+
+Therefore, SQLAlchemy inserts the related parent objects first, obtains their generated primary keys, and then uses those values automatically when inserting dependent rows.
