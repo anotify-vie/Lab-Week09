@@ -53,7 +53,7 @@ class HeroBase(SQLModel):
         default=None,
         foreign_key="team.id"
     )
-
+    power: str | None = None
 
 class Hero(HeroBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -80,7 +80,7 @@ class HeroUpdate(SQLModel):
     age: int | None = None
     team_id: int | None = None
     secret_name: str | None = None
-
+    power: str | None = None
 
 # =========================
 # MISSION MODELS
