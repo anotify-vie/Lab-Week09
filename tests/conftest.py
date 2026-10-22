@@ -4,6 +4,7 @@ import os
 os.environ["SECRET_KEY"] = "test-only-secret-never-use-in-production"
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
+os.environ["CORS_ORIGINS"] = "http://localhost:5500,http://127.0.0.1:5500"
 
 import pytest
 from fastapi.testclient import TestClient

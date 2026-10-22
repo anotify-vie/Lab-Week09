@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel
 
@@ -27,6 +29,19 @@ app = FastAPI(
         {"name": "teams", "description": "Public team reads and admin-only creation."},
         {"name": "missions", "description": "Missions and hero assignments."},
     ],
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip().rstrip("/")
+        for origin in os.getenv(
+            "CORS_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500"
+        ).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 for router in (auth.router, heroes.router, teams.router, missions.router):

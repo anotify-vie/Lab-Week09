@@ -153,27 +153,41 @@ class HeroPublic(HeroBase):
     created_at: datetime
     owner_id: int | None
 
+    @field_validator("created_at")
+    @classmethod
+    def timestamp_in_utc(cls, value: datetime) -> datetime:
+        # SQLite loses timezone metadata; stored hero timestamps are always UTC.
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
 
 class HeroUpdate(SQLModel):
     name: str | None = Field(
         default=None,
         min_length=1,
-        max_length=50
+        max_length=50,
+        schema_extra={"examples": ["Deadpond"]},
     )
 
     age: int | None = Field(
         default=None,
         ge=0,
-        le=1000
+        le=1000,
+        schema_extra={"examples": [30]},
     )
 
-    team_id: int | None = None
+    team_id: int | None = Field(default=None, schema_extra={"examples": [1]})
 
-    secret_name: str | None = None
+    secret_name: str | None = Field(
+        default=None, schema_extra={"examples": ["Dive Wilson"]}
+    )
 
-    power: str | None = None
+    power: str | None = Field(default=None, schema_extra={"examples": ["Speed"]})
 
-    status: HeroStatus | None = None
+    status: HeroStatus | None = Field(
+        default=None, schema_extra={"examples": ["retired"]}
+    )
 
     @field_validator("name", "status", "secret_name")
     @classmethod

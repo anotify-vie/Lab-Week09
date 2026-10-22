@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="api-base" content="">
   <title>Heroes · Quản lý biệt đội</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./app.js" type="module"></script>
@@ -11,7 +12,7 @@
   <main>
     <header>
       <div><p class="eyebrow">HEROES / WEEK 11</p><h1>Quản lý biệt đội</h1><p>Xem các hero, tham gia và quản lý hero của bạn.</p></div>
-      <a href="/docs">Tài liệu API ↗</a>
+      <a id="api-docs" href="/docs">Tài liệu API ↗</a>
     </header>
     <section class="account" aria-label="Tài khoản">
       <p id="account-status">Chưa đăng nhập</p>
@@ -39,9 +40,10 @@
     </div>
     <section class="card">
       <div class="section-heading"><h2>Danh sách hero</h2><button id="refresh" class="secondary" type="button">Tải lại</button></div>
+      <label class="team-filter">Lọc theo biệt đội<select id="team-filter"><option value="">Tất cả biệt đội</option></select></label>
       <p id="hero-count"></p>
       <div class="table-wrap"><table>
-        <thead><tr><th>Tên</th><th>Tuổi</th><th>Biệt đội</th><th>Sức mạnh</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <thead><tr><th>ID</th><th>Tên</th><th>Tuổi</th><th>Biệt đội</th><th>Sức mạnh</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
         <tbody id="heroes"></tbody>
       </table></div>
     </section>

@@ -6,7 +6,7 @@ API = "/api/v1"
 HERO = {"name": "Deadpond", "secret_name": "Dive Wilson"}
 
 
-@pytest.mark.parametrize("query", ["offset=-1", "limit=0", "limit=101", "min_age=-1"])
+@pytest.mark.parametrize("query", ["offset=-1", "limit=-1", "limit=0", "limit=101", "min_age=-1"])
 def test_pagination_and_filter_validation(client, query):
     assert client.get(f"{API}/heroes?{query}").status_code == 422
 
@@ -48,3 +48,26 @@ def test_swagger_oauth_configuration_and_frontend_assets(client):
     assert {"401", "403", "409"} <= schema["paths"][f"{API}/teams"]["post"]["responses"].keys()
     for path in ("/frontend/", "/frontend/app.js", "/frontend/styles.css"):
         assert client.get(path).status_code == 200
+
+
+def test_openapi_documents_rest_contract_examples_and_errors(client):
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(path).status_code == 200
+    schema = client.get("/openapi.json").json()
+    assert schema["info"]["title"] == "Heroes API"
+    assert schema["info"]["version"]
+    models = schema["components"]["schemas"]
+    assert models["HeroStatus"]["enum"] == ["active", "retired"]
+    assert models["HeroCreate"]["properties"]["name"]["examples"] == ["Deadpond"]
+    assert models["HeroUpdate"]["properties"]["status"]["examples"] == ["retired"]
+    assert "created_at" not in models["HeroCreate"]["properties"]
+    assert "secret_name" not in models["HeroPublic"]["properties"]
+    for path, operations in schema["paths"].items():
+        if not path.startswith(API):
+            continue
+        for operation in operations.values():
+            assert operation["tags"]
+            assert operation["summary"]
+    assert "404" in schema["paths"][f"{API}/heroes/{{hero_id}}"]["get"]["responses"]
+    assert "400" in schema["paths"][f"{API}/heroes"]["post"]["responses"]
+    assert "404" in schema["paths"][f"{API}/teams/{{team_id}}/heroes"]["get"]["responses"]

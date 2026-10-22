@@ -1,5 +1,9 @@
-const API = "/api/v1";
+const configuredApi = document.querySelector('meta[name="api-base"]').content.trim();
+const API = (configuredApi || (window.location.port === "5500"
+  ? "http://127.0.0.1:8000/api/v1"
+  : "/api/v1")).replace(/\/+$/, "");
 const $ = (selector) => document.querySelector(selector);
+$("#api-docs").href = `${new URL(API, window.location.href).origin}/docs`;
 let token = sessionStorage.getItem("token");
 let user = null;
 let heroes = [];
@@ -52,7 +56,9 @@ async function request(path, options = {}) {
   if (response.status === 403) throw new Error("Bạn không có quyền thực hiện thao tác này.");
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const detail = Array.isArray(body.detail) ? body.detail.map((item) => item.msg).join("; ") : body.detail;
+    const detail = Array.isArray(body.detail)
+      ? body.detail.map((item) => `${item.loc?.at(-1) ?? "Dữ liệu"}: ${item.msg}`).join("; ")
+      : body.detail;
     throw new Error(detail || `Yêu cầu thất bại (${response.status}).`);
   }
   return response.status === 204 ? null : response.json();
@@ -69,10 +75,13 @@ function canEdit(hero) {
 function renderHeroes() {
   const tbody = $("#heroes");
   tbody.replaceChildren();
-  $("#hero-count").textContent = heroes.length ? `${heroes.length} hero (tối đa 100 mỗi lần tải)` : "Chưa có hero nào.";
+  const selectedTeam = teams.find((team) => String(team.id) === $("#team-filter").value);
+  $("#hero-count").textContent = heroes.length
+    ? `${heroes.length} hero${selectedTeam ? ` · ${selectedTeam.name}` : " (tối đa 100 mỗi lần tải)"}`
+    : "Chưa có hero nào.";
   for (const hero of heroes) {
     const row = document.createElement("tr");
-    const values = [hero.name, hero.age ?? "—", teams.find((team) => team.id === hero.team_id)?.name ?? "—", hero.power ?? "—", hero.status === "active" ? "Đang hoạt động" : "Đã nghỉ"];
+    const values = [hero.id, hero.name, hero.age ?? "—", teams.find((team) => team.id === hero.team_id)?.name ?? "—", hero.power ?? "—", hero.status === "active" ? "Đang hoạt động" : "Đã nghỉ"];
     for (const value of values) {
       const cell = document.createElement("td");
       // Treat API values as text so hero names cannot inject HTML/scripts.
@@ -122,14 +131,22 @@ function editHero(hero) {
   form.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-async function refresh() {
-  [heroes, teams] = await Promise.all([request("/heroes?limit=100"), request("/teams")]);
-  const select = $("#hero-team");
-  const previous = select.value;
-  select.replaceChildren(new Option("Không có biệt đội", ""));
-  for (const team of teams) select.append(new Option(team.name, String(team.id)));
-  select.value = previous;
+async function loadHeroes() {
+  const teamId = $("#team-filter").value;
+  heroes = await request(teamId ? `/teams/${teamId}/heroes` : "/heroes?limit=100");
   renderHeroes();
+}
+
+async function refresh() {
+  teams = await request("/teams");
+  for (const [selector, label] of [["#hero-team", "Không có biệt đội"], ["#team-filter", "Tất cả biệt đội"]]) {
+    const select = $(selector);
+    const previous = select.value;
+    select.replaceChildren(new Option(label, ""));
+    for (const team of teams) select.append(new Option(team.name, String(team.id)));
+    select.value = teams.some((team) => String(team.id) === previous) ? previous : "";
+  }
+  await loadHeroes();
 }
 
 $("#login-form").addEventListener("submit", async (event) => {
@@ -189,6 +206,7 @@ $("#team-form").addEventListener("submit", async (event) => {
 $("#logout").addEventListener("click", () => { logout(); message("Đã đăng xuất."); });
 $("#cancel-edit").addEventListener("click", resetEditor);
 $("#refresh").addEventListener("click", () => refresh().catch((error) => message(error.message, true)));
+$("#team-filter").addEventListener("change", () => loadHeroes().catch((error) => message(error.message, true)));
 
 async function start() {
   renderAccount();

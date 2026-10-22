@@ -25,6 +25,7 @@ button.danger { background: #fff0ee; color: #a02a24; }
 button:disabled { opacity: .45; cursor: default; }
 .actions { justify-content: flex-start; flex-wrap: wrap; }
 .table-wrap { overflow-x: auto; }
+.team-filter { max-width: 320px; margin-top: 12px; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 th { color: #596b67; font-size: .8rem; }
 td, th { padding: 14px 12px; border-bottom: 1px solid #e6ece8; }

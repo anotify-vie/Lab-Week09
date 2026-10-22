@@ -2,7 +2,7 @@
 
 * Trần Tuấn Anh - 11247264
 
-Đã bổ sung nội dung **Week 11 — Authentication & Security** từ `week11.pdf` vào Heroes API của Week 9. Xem đối chiếu chi tiết trong [WEEK11_CHECKLIST.md](WEEK11_CHECKLIST.md). Bài trả lời Week 9 vẫn nằm trong [answers.md](answers.md).
+Heroes API của Week 9 đã được bổ sung nội dung **Week 10 — REST API, JSON, Auto-Docs & Testing** từ `week10-2.pdf` và **Week 11 — Authentication & Security** từ `week11.pdf`. Xem đối chiếu Week 10 trong [WEEK10_CHECKLIST.md](WEEK10_CHECKLIST.md). Bài trả lời Week 9 vẫn nằm trong [answers.md](answers.md).
 
 ## Chạy dự án
 
@@ -31,6 +31,8 @@ Lệnh tạo admin sẽ hỏi mật khẩu trong terminal; mật khẩu cần í
 
 - Giao diện: <http://127.0.0.1:8000/frontend/>
 - Swagger: <http://127.0.0.1:8000/docs>
+- ReDoc: <http://127.0.0.1:8000/redoc>
+- OpenAPI JSON: <http://127.0.0.1:8000/openapi.json>
 - API chính: `http://127.0.0.1:8000/api/v1`
 - URL Week 9 như `/heroes`, `/teams` vẫn hoạt động và áp dụng cùng quyền truy cập.
 
@@ -92,6 +94,30 @@ curl -i http://127.0.0.1:8000/api/v1/me \
 
 Giao diện có đăng ký, đăng nhập, “Logged in as …”, đăng xuất, xem danh sách, tạo/sửa/xóa hero và tạo team cho admin. Token lưu trong `sessionStorage`, gửi trong `Authorization` khi gọi API. Tên hero/team được đưa vào DOM bằng `textContent`/`Option`, không nội suy HTML.
 
+## Week 10: Live Server, CORS và frontend
+
+Có thể mở giao diện cùng backend tại `/frontend/`, hoặc mở `frontend/index.html` bằng VS Code Live Server cổng **5500**. Cách tương đương bằng Python, chạy ở terminal thứ hai tại thư mục gốc dự án:
+
+```bash
+python -m http.server 5500 --bind 127.0.0.1
+```
+
+Truy cập <http://127.0.0.1:5500/frontend/>. Khi frontend ở cổng 5500, JavaScript gọi API `http://127.0.0.1:8000/api/v1`; khi frontend được FastAPI phục vụ, JavaScript dùng `/api/v1` cùng origin. Link tài liệu cũng trỏ về backend. Nếu dùng địa chỉ API khác, đặt URL đầy đủ vào `content` của thẻ `<meta name="api-base">` trong `frontend/index.html`.
+
+Backend cho phép hai origin mặc định `http://localhost:5500` và `http://127.0.0.1:5500`. Khi đổi host/port hoặc triển khai, cấu hình `.env` rồi khởi động lại backend:
+
+```dotenv
+CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500,https://your-frontend.example.com
+```
+
+Origin là **scheme + host + port**, không có đường dẫn. CORS middleware cho phép preflight `OPTIONS`, JSON và header `Authorization`; không bật cookie credentials. CORS không thay thế đăng nhập hay phân quyền.
+
+Để thực hành lỗi CORS trong Lab 2, tạm đặt `CORS_ORIGINS=` rồi restart backend: trình duyệt sẽ chặn frontend ở cổng 5500 đọc response; sau đó khôi phục giá trị trên và restart. `/docs` cùng origin và curl vẫn gọi được API trong lúc này.
+
+Giao diện có bảng ID/tên/tuổi/team/power/status, form tạo hero tự tải lại bảng khi thành công và thông báo validation kèm tên trường (ví dụ `age: Input should be greater than or equal to 0`). Dropdown **Lọc theo biệt đội** lấy dữ liệu từ `GET /teams` và gọi `GET /teams/{id}/heroes`. Việc tạo/sửa/xóa vẫn cần đăng nhập theo Week 11; tạo team cần admin. Các trường có ràng buộc HTML cũng được trình duyệt kiểm tra trước khi gửi; test API kiểm tra riêng trường hợp gửi tuổi âm và các lỗi 422.
+
+API dùng `HeroPublic` cho mọi response hero, ẩn `secret_name`, serialize `status` thành `active`/`retired` và `created_at` thành ISO 8601 có UTC. Client không tự đặt `created_at`. Pagination dùng `offset >= 0`, `1 <= limit <= 100`; lọc team không tồn tại trả `[]`, còn truy cập `/teams/{id}/heroes` của team không tồn tại trả `404`.
+
 ## Kiểm thử
 
 ```bash
@@ -99,7 +125,7 @@ source .venv/bin/activate
 python -m pytest -v
 ```
 
-Tests tự dùng khóa riêng và SQLite tạm/in-memory, không kết nối database của bạn. Bao gồm hash/salt, giới hạn 72 byte, JWT hợp lệ/bị sửa/sai khóa/hết hạn/thiếu claims, 401/403, owner/admin, URL cũ, validation/filter, OpenAPI, phục vụ frontend và migration giữ lại dữ liệu cũ.
+Tests tự dùng khóa riêng và SQLite tạm/in-memory, không kết nối database của bạn. Bao gồm hash/salt, giới hạn 72 byte, JWT hợp lệ/bị sửa/sai khóa/hết hạn/thiếu claims, 401/403, owner/admin, URL cũ, validation/filter, OpenAPI, phục vụ frontend và migration giữ lại dữ liệu cũ. Các file `test_heroes.py`, `test_teams.py`, `test_cors.py` kiểm tra chi tiết hợp đồng REST của Week 10: 200/201/204/400/404/409/422, PATCH từng phần, timestamp UTC, origin được phép/bị từ chối và preflight có Bearer header. `pytest.ini` cấu hình `pythonpath = .` nên cũng có thể chạy `.venv/bin/pytest -v`.
 
 ## Ghi chú bảo mật theo bài học
 
