@@ -3,7 +3,9 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlmodel import Session, create_engine
+from dotenv import load_dotenv
 
+load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -18,7 +20,7 @@ if DATABASE_URL.startswith("sqlite"):
 
 engine = create_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,
     connect_args=connect_args
 )
 

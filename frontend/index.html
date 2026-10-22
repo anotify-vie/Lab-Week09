@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Heroes · Quản lý biệt đội</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" type="module"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <div><p class="eyebrow">HEROES / WEEK 11</p><h1>Quản lý biệt đội</h1><p>Xem các hero, tham gia và quản lý hero của bạn.</p></div>
+      <a href="/docs">Tài liệu API ↗</a>
+    </header>
+    <section class="account" aria-label="Tài khoản">
+      <p id="account-status">Chưa đăng nhập</p>
+      <button id="logout" type="button" hidden>Đăng xuất</button>
+    </section>
+    <p id="message" role="status" aria-live="polite"></p>
+    <div class="columns" id="auth-forms">
+      <section class="card">
+        <h2>Đăng nhập</h2>
+        <form id="login-form">
+          <label>Tên đăng nhập<input name="username" autocomplete="username" required minlength="3" maxlength="30"></label>
+          <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label>
+          <button>Đăng nhập</button>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Tạo tài khoản</h2>
+        <form id="register-form">
+          <label>Tên đăng nhập<input name="username" autocomplete="username" required minlength="3" maxlength="30"></label>
+          <label>Mật khẩu<input name="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-hint"></label>
+          <small id="password-hint">Ít nhất 8 ký tự, tối đa 72 byte UTF-8.</small>
+          <button>Tạo tài khoản</button>
+        </form>
+      </section>
+    </div>
+    <section class="card">
+      <div class="section-heading"><h2>Danh sách hero</h2><button id="refresh" class="secondary" type="button">Tải lại</button></div>
+      <p id="hero-count"></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tên</th><th>Tuổi</th><th>Biệt đội</th><th>Sức mạnh</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <tbody id="heroes"></tbody>
+      </table></div>
+    </section>
+    <div class="columns">
+      <section class="card">
+        <h2 id="editor-title">Tạo hero của bạn</h2>
+        <p id="editor-hint">Đăng nhập để tạo hero. Bạn có thể sửa hoặc xóa hero của mình.</p>
+        <form id="hero-form"><fieldset id="hero-fields" disabled>
+          <label>Tên hero<input name="name" required maxlength="50"></label>
+          <label>Danh tính bí mật<input name="secret_name" id="secret-name" required></label>
+          <label>Tuổi<input name="age" type="number" min="0" max="1000"></label>
+          <label>Biệt đội<select name="team_id" id="hero-team"><option value="">Không có biệt đội</option></select></label>
+          <label>Sức mạnh<input name="power"></label>
+          <label>Trạng thái<select name="status"><option value="active">Đang hoạt động</option><option value="retired">Đã nghỉ</option></select></label>
+          <div class="actions"><button id="save-hero">Tạo hero</button><button id="cancel-edit" class="secondary" type="button" hidden>Hủy chỉnh sửa</button></div>
+        </fieldset></form>
+      </section>
+      <section class="card" id="team-panel" hidden>
+        <h2>Tạo biệt đội</h2>
+        <p>Dành cho quản trị viên.</p>
+        <form id="team-form">
+          <label>Tên biệt đội<input name="name" required maxlength="50"></label>
+          <label>Trụ sở<input name="headquarters" required></label>
+          <button>Tạo biệt đội</button>
+        </form>
+      </section>
+    </div>
+    <footer>Hero công khai cho mọi người · Chỉ chủ sở hữu hoặc admin được chỉnh sửa</footer>
+  </main>
+</body>
+</html>

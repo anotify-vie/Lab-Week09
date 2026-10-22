@@ -1,7 +1,7 @@
 """add hero.power
 
 Revision ID: 59b9ed58da4a
-Revises: 
+Revises: 20261022_base
 Create Date: 2026-10-05 20:39:34.138405
 
 """
@@ -14,7 +14,7 @@ import sqlmodel
 
 # revision identifiers, used by Alembic.
 revision: str = '59b9ed58da4a'
-down_revision: Union[str, Sequence[str], None] = None
+down_revision: Union[str, Sequence[str], None] = '20261022_base'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

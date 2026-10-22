@@ -1,223 +1,47 @@
 from contextlib import asynccontextmanager
-from sqlalchemy.exc import IntegrityError
-from fastapi import FastAPI, HTTPException, Query, Response
-from sqlmodel import SQLModel, select
+from pathlib import Path
 
-from app import models
-from app.database import engine, SessionDep
-from app.models import (
-    Hero,
-    HeroCreate,
-    HeroPublic,
-    HeroUpdate,
-    Team,
-    TeamCreate,
-    TeamPublic,
-    Mission,
-    MissionCreate,
-    MissionPublic,
-)
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from sqlmodel import SQLModel
+
+from app.database import engine
+from app.routers import auth, heroes, missions, teams
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Creates a fresh database. Existing databases must use Alembic migrations.
     SQLModel.metadata.create_all(engine)
     yield
 
-app = FastAPI(lifespan=lifespan)
 
-@app.get("/")
+app = FastAPI(
+    title="Heroes API",
+    version="0.11.0",
+    description="Public reads, JWT authentication, and owner/admin permissions.",
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "auth", "description": "Register, log in, and view your account."},
+        {"name": "heroes", "description": "Heroes and their owners."},
+        {"name": "teams", "description": "Public team reads and admin-only creation."},
+        {"name": "missions", "description": "Missions and hero assignments."},
+    ],
+)
+
+for router in (auth.router, heroes.router, teams.router, missions.router):
+    app.include_router(router, prefix="/api/v1")
+    # Keep Week 9 URLs working with exactly the same permission dependencies.
+    app.include_router(router, include_in_schema=False)
+
+
+@app.get("/", summary="API health")
 def root():
     return {"message": "Hero API is running"}
 
-@app.post("/heroes", response_model=HeroPublic, status_code=201)
-def create_hero(hero_in: HeroCreate, session: SessionDep):
-    if hero_in.team_id is not None:
-        team = session.get(Team, hero_in.team_id)
-        if team is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Team not found"
-            )
-    hero = Hero.model_validate(hero_in)
-    session.add(hero)
-    session.commit()
-    session.refresh(hero)
-    return hero
 
-@app.get("/heroes", response_model=list[HeroPublic])
-def list_heroes(
-    session: SessionDep,
-    offset: int = 0,
-    limit: int = Query(default=10, le=100),
-    min_age: int | None = None,
-    team_id: int | None = None,
-    name: str | None = None,
-):
-    statement = select(Hero)
-    if min_age is not None:
-        statement = statement.where(Hero.age >= min_age)
-    if team_id is not None:
-        statement = statement.where(Hero.team_id == team_id)
-    if name is not None:
-        statement = statement.where(
-            Hero.name.ilike(f"%{name}%")
-        )
-    statement = (
-        statement
-        .order_by(Hero.id)
-        .offset(offset)
-        .limit(limit)
-    )
-    heroes = session.exec(statement).all()
-    return heroes
-
-@app.get("/heroes/{hero_id}", response_model=HeroPublic)
-def get_hero(hero_id: int, session: SessionDep):
-    hero = session.get(Hero, hero_id)
-    if hero is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hero not found"
-        )
-    return hero
-
-@app.patch("/heroes/{hero_id}", response_model=HeroPublic)
-def update_hero(
-    hero_id: int,
-    hero_in: HeroUpdate,
-    session: SessionDep
-):
-    hero = session.get(Hero, hero_id)
-    if hero is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hero not found"
-        )
-    hero_data = hero_in.model_dump(exclude_unset=True)
-    if "team_id" in hero_data and hero_data["team_id"] is not None:
-        team = session.get(Team, hero_data["team_id"])
-        if team is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Team not found"
-            )
-    hero.sqlmodel_update(hero_data)
-    session.add(hero)
-    session.commit()
-    session.refresh(hero)
-    return hero
-
-@app.delete("/heroes/{hero_id}", status_code=204)
-def delete_hero(hero_id: int, session: SessionDep):
-    hero = session.get(Hero, hero_id)
-    if hero is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hero not found"
-        )
-    session.delete(hero)
-    session.commit()
-    return Response(status_code=204)
-
-@app.post("/teams", response_model=TeamPublic, status_code=201)
-def create_team(team_in: TeamCreate, session: SessionDep):
-    team = Team.model_validate(team_in)
-
-    session.add(team)
-
-    try:
-        session.commit()
-        session.refresh(team)
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Team name already exists"
-        )
-
-    return team
-
-@app.get("/teams", response_model=list[TeamPublic])
-def list_teams(session: SessionDep):
-    statement = select(Team).order_by(Team.id)
-    teams = session.exec(statement).all()
-
-    return teams
-
-@app.get("/teams/{team_id}/heroes", response_model=list[HeroPublic])
-def get_team_heroes(team_id: int, session: SessionDep):
-    team = session.get(Team, team_id)
-
-    if team is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Team not found"
-        )
-
-    return team.heroes
-
-@app.post("/missions", response_model=MissionPublic, status_code=201)
-def create_mission(
-    mission_in: MissionCreate,
-    session: SessionDep
-):
-    mission = Mission.model_validate(mission_in)
-
-    session.add(mission)
-    session.commit()
-    session.refresh(mission)
-
-    return mission
-
-@app.post(
-    "/heroes/{hero_id}/missions/{mission_id}",
-    status_code=204
+app.mount(
+    "/frontend",
+    StaticFiles(directory=Path(__file__).resolve().parent.parent / "frontend", html=True),
+    name="frontend",
 )
-def assign_hero_to_mission(
-    hero_id: int,
-    mission_id: int,
-    session: SessionDep
-):
-    hero = session.get(Hero, hero_id)
-
-    if hero is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hero not found"
-        )
-
-    mission = session.get(Mission, mission_id)
-
-    if mission is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Mission not found"
-        )
-
-    if mission not in hero.missions:
-        hero.missions.append(mission)
-
-        session.add(hero)
-        session.commit()
-
-    return Response(status_code=204)
-
-@app.get(
-    "/heroes/{hero_id}/missions",
-    response_model=list[MissionPublic]
-)
-def get_hero_missions(
-    hero_id: int,
-    session: SessionDep
-):
-    hero = session.get(Hero, hero_id)
-
-    if hero is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hero not found"
-        )
-
-    return hero.missions
-
